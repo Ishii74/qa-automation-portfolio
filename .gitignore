@@ -1,0 +1,26 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Playwright / テスト結果
+test-results/
+playwright-report/
+report.html
+traces/
+
+# Newman
+newman/
+
+# Node
+node_modules/
+
+# 環境・エディタ
+.env
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
