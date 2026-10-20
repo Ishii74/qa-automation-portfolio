@@ -13,6 +13,9 @@ traces/
 # Newman
 newman/
 
+# JMeter（結果はGitに入れない。レポートのスクリーンショットだけREADMEに載せる）
+jmeter/results/
+
 # Node
 node_modules/
 

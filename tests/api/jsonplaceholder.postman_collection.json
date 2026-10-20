@@ -1,0 +1,208 @@
+{
+  "info": {
+    "name": "jsonplaceholder-api-tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://jsonplaceholder.typicode.com"
+    }
+  ],
+  "item": [
+    {
+      "name": "GET /posts（一覧取得）",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"ステータスが200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"配列で、1件以上ある\", function () { const j = pm.response.json(); pm.expect(j).to.be.an(\"array\"); pm.expect(j.length).to.be.above(0); });",
+              "pm.test(\"応答時間が2秒以内\", function () { pm.expect(pm.response.responseTime).to.be.below(2000); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/posts",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "posts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /posts/1（1件取得）",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"ステータスが200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"id・titleがある\", function () { const j = pm.response.json(); pm.expect(j.id).to.eql(1); pm.expect(j.title).to.be.a(\"string\"); });",
+              "pm.test(\"応答時間が2秒以内\", function () { pm.expect(pm.response.responseTime).to.be.below(2000); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/posts/1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "posts",
+            "1"
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /posts/9999（存在しないID）",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"ステータスが404\", function () { pm.response.to.have.status(404); });",
+              "pm.test(\"応答時間が2秒以内\", function () { pm.expect(pm.response.responseTime).to.be.below(2000); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/posts/9999",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "posts",
+            "9999"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST /posts（作成）",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"ステータスが201\", function () { pm.response.to.have.status(201); });",
+              "pm.test(\"送った内容が返り、idが付く\", function () { const j = pm.response.json(); pm.expect(j.title).to.eql(\"qa portfolio\"); pm.expect(j.id).to.be.a(\"number\"); });",
+              "pm.test(\"応答時間が2秒以内\", function () { pm.expect(pm.response.responseTime).to.be.below(2000); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/posts",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "posts"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"qa portfolio\", \"body\": \"test\", \"userId\": 1}"
+        }
+      }
+    },
+    {
+      "name": "PUT /posts/1（更新）",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"ステータスが200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"更新した内容が返る\", function () { pm.expect(pm.response.json().title).to.eql(\"updated title\"); });",
+              "pm.test(\"応答時間が2秒以内\", function () { pm.expect(pm.response.responseTime).to.be.below(2000); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/posts/1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "posts",
+            "1"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"id\": 1, \"title\": \"updated title\", \"body\": \"test\", \"userId\": 1}"
+        }
+      }
+    },
+    {
+      "name": "DELETE /posts/1（削除）",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"ステータスが200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"応答時間が2秒以内\", function () { pm.expect(pm.response.responseTime).to.be.below(2000); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/posts/1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "posts",
+            "1"
+          ]
+        }
+      }
+    }
+  ]
+}
