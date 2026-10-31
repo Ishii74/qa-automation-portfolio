@@ -1,0 +1,126 @@
+name: Performance
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_p95_ms:
+        description: "Reference p95 threshold in milliseconds"
+        required: true
+        default: "1000"
+        type: string
+      max_error_rate_pct:
+        description: "Reference overall error-rate threshold in percent"
+        required: true
+        default: "5"
+        type: string
+
+jobs:
+  juice-shop-performance:
+    name: Juice Shop JMeter Performance
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      juice-shop:
+        image: bkimminich/juice-shop:latest
+        ports:
+          - 3000:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install JMeter
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jmeter
+
+      - name: Wait for local Juice Shop
+        run: |
+          for attempt in $(seq 1 30); do
+            status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/)
+            if [ "$status" = "200" ]; then
+              echo "Juice Shop is ready."
+              exit 0
+            fi
+            echo "Waiting for Juice Shop (attempt $attempt, HTTP $status)..."
+            sleep 10
+          done
+          echo "Juice Shop did not become ready."
+          exit 1
+
+      - name: Prepare JMeter test data
+        run: |
+          tail -n +2 jmeter/data/users.csv | while IFS=, read -r email password; do
+            body=$(printf '{"email":"%s","password":"%s","passwordRepeat":"%s","securityQuestion":{"id":1},"securityAnswer":"qa-ci"}' "$email" "$password")
+            curl -sS -o /dev/null -X POST \
+              -H 'Content-Type: application/json' \
+              -d "$body" \
+              http://localhost:3000/api/Users/
+          done
+
+          IFS=, read -r email password < <(tail -n +2 jmeter/data/users.csv | head -n 1)
+          login_status=$(curl -sS -o /dev/null -w "%{http_code}" \
+            -H 'Content-Type: application/json' \
+            -d "$(printf '{"email":"%s","password":"%s"}' "$email" "$password")" \
+            http://localhost:3000/rest/user/login)
+          echo "Test user login status: $login_status"
+          if [ "$login_status" != "200" ]; then
+            echo "Test data preparation failed: the CSV test user could not log in."
+            exit 1
+          fi
+
+      - name: Prepare CI JMeter plan paths
+        run: |
+          cp jmeter/juice-shop-loadtest.jmx jmeter/juice-shop-loadtest-ci.jmx
+          sed -i \
+            -e 's#<stringProp name="filename">[^<]*users\.csv</stringProp>#<stringProp name="filename">jmeter/data/users.csv</stringProp>#' \
+            -e 's#<stringProp name="filename">[^<]*results\.jtl *</stringProp>#<stringProp name="filename">jmeter/results.jtl</stringProp>#' \
+            jmeter/juice-shop-loadtest-ci.jmx
+
+      - name: Run JMeter in non-GUI mode
+        id: jmeter-run
+        continue-on-error: true
+        run: jmeter -n -t jmeter/juice-shop-loadtest-ci.jmx -l jmeter/results.jtl
+
+      - name: Generate HTML Report
+        id: html-report
+        continue-on-error: true
+        run: jmeter -g jmeter/results.jtl -e -o jmeter/ci-report
+
+      - name: Analyze performance results
+        id: analyze
+        continue-on-error: true
+        run: |
+          python scripts/analyze_jmeter.py \
+            jmeter/results.jtl \
+            --max-p95-ms "${{ inputs.max_p95_ms }}" \
+            --max-error-rate-pct "${{ inputs.max_error_rate_pct }}"
+
+      - name: Upload JTL and HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results
+          path: |
+            jmeter/results.jtl
+            jmeter/ci-report/
+          if-no-files-found: warn
+
+      - name: Evaluate performance gate
+        if: always()
+        run: |
+          echo "JMeter run: ${{ steps.jmeter-run.outcome }}"
+          echo "HTML report: ${{ steps.html-report.outcome }}"
+          echo "Analysis: ${{ steps.analyze.outcome }}"
+
+          if [ "${{ steps.jmeter-run.outcome }}" != "success" ]; then
+            echo "Performance workflow failed because JMeter did not complete successfully."
+            exit 1
+          fi
+          if [ "${{ steps.html-report.outcome }}" != "success" ]; then
+            echo "Performance workflow failed because the HTML report was not generated."
+            exit 1
+          fi
+          if [ "${{ steps.analyze.outcome }}" != "success" ]; then
+            echo "Performance workflow failed because threshold analysis failed."
+            exit 1
+          fi
