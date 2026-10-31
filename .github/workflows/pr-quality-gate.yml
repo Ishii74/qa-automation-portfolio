@@ -4,35 +4,35 @@ on:
   pull_request:
 
 jobs:
-  smoke:
-    name: API and UI smoke
+  api-smoke:
+    name: API Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - name: Install Newman
+        run: npm install -g newman
+      - name: API smoke
+        run: newman run tests/api/jsonplaceholder.postman_collection.json
 
+  ui-smoke:
+    name: UI Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Install UI dependencies
         run: |
           pip install -r requirements.txt
           playwright install --with-deps chromium
-
-      - name: Install Newman
-        run: npm install -g newman
-
-      - name: API smoke
-        run: newman run tests/api/jsonplaceholder.postman_collection.json
-
       - name: UI login smoke
-        run: pytest tests/ui/test_login.py -q
-
+        run: pytest tests/ui/test_login.py::test_tc01_login_success -q --browser chromium --output=test-results
       - name: Save UI failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
@@ -40,3 +40,22 @@ jobs:
           name: pr-ui-test-results
           path: test-results/
           if-no-files-found: ignore
+
+  pr-quality-gate:
+    name: PR Quality Gate Result
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - api-smoke
+      - ui-smoke
+    if: always()
+    steps:
+      - name: Evaluate API and UI smoke results
+        run: |
+          echo "API Smoke: ${{ needs.api-smoke.result }}"
+          echo "UI Smoke: ${{ needs.ui-smoke.result }}"
+
+          if [ "${{ needs.api-smoke.result }}" != "success" ] || [ "${{ needs.ui-smoke.result }}" != "success" ]; then
+            echo "PR quality gate failed because API or UI smoke did not succeed."
+            exit 1
+          fi

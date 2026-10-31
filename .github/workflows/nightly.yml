@@ -1,0 +1,62 @@
+name: Nightly Regression
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  ui-nightly:
+    name: UI Nightly Regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install UI dependencies
+        run: |
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+      - name: Run existing UI regression suite
+        run: pytest tests/ui -q --browser chromium --output=test-results
+      - name: Save UI failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-ui-test-results
+          path: test-results/
+          if-no-files-found: ignore
+
+  api-nightly:
+    name: API Nightly Regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Newman
+        run: npm install -g newman
+      - name: Run existing API collection
+        run: newman run tests/api/jsonplaceholder.postman_collection.json
+
+  nightly-gate:
+    name: Nightly Regression Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - ui-nightly
+      - api-nightly
+    if: always()
+    steps:
+      - name: Evaluate nightly regression results
+        run: |
+          echo "UI Nightly: ${{ needs.ui-nightly.result }}"
+          echo "API Nightly: ${{ needs.api-nightly.result }}"
+          if [ "${{ needs.ui-nightly.result }}" != "success" ] || [ "${{ needs.api-nightly.result }}" != "success" ]; then
+            echo "Nightly regression failed because UI or API did not succeed."
+            exit 1
+          fi

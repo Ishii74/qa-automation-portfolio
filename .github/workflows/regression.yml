@@ -1,0 +1,69 @@
+name: Regression
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  ui-regression:
+    name: UI Regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install UI dependencies
+        run: |
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+      - name: Run login, cart, and checkout regression
+        run: |
+          pytest \
+            tests/ui/test_login.py \
+            tests/ui/test_cart.py \
+            tests/ui/test_checkout.py \
+            -q \
+            --browser chromium \
+            --output=test-results
+      - name: Save UI failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-ui-test-results
+          path: test-results/
+          if-no-files-found: ignore
+
+  api-regression:
+    name: API Regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Newman
+        run: npm install -g newman
+      - name: Run API collection
+        run: newman run tests/api/jsonplaceholder.postman_collection.json
+
+  regression-gate:
+    name: Regression Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - ui-regression
+      - api-regression
+    if: always()
+    steps:
+      - name: Evaluate regression results
+        run: |
+          echo "UI Regression: ${{ needs.ui-regression.result }}"
+          echo "API Regression: ${{ needs.api-regression.result }}"
+          if [ "${{ needs.ui-regression.result }}" != "success" ] || [ "${{ needs.api-regression.result }}" != "success" ]; then
+            echo "Regression failed because UI or API regression did not succeed."
+            exit 1
+          fi
