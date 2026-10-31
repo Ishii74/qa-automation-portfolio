@@ -1,110 +1,128 @@
 # QA Automation Portfolio
 
-テスト設計 → 自動化（UI・API）→ 負荷テスト → CI まで、QAの流れを一通り実践したポートフォリオです。
+品質リスク分析、テスト手法の選定、自動化範囲とCI運用を実践するQAポートフォリオです。  
+API・UI・性能テストを、検出価値、実行頻度、保守コストに基づいて使い分けています。
 
 ![tests](https://github.com/Ishii74/qa-automation-portfolio/actions/workflows/test.yml/badge.svg)
 
+## 示すスキル
+
+- 品質リスク分析と優先順位付け
+- UI、API、性能、手動テストの役割分担
+- 自動化する・しない判断の根拠づけ
+- Playwright / pytest / Page Objectによる主要導線の回帰
+- Postman / NewmanによるAPIテスト
+- JMeterによる目的別負荷テスト
+- GitHub Actionsによるテスト自動実行
+
+## テスト戦略
+
+| リスク | 主担当 | 補完層 |
+|---|---|---|
+| ログイン失敗 R-01 | API + UI | 手動、A11y候補 |
+| 権限外アクセス R-02 | API | UI代表例、手動 |
+| カート状態不整合 R-03 | UI/E2E | API |
+| 購入結果の不整合 R-04 | API + UI | 性能・A11y・手動の限定確認 |
+| 表示・操作性 R-05 | 手動 + A11y | UI |
+| 負荷時の劣化 R-06 | JMeter | API確認 |
+
+## 実装済み領域
+
+| 種類 | 対象 | 実装 |
+|---|---|---|
+| UIテスト | SauceDemo | `tests/ui/`、`pages/` |
+| APIテスト | JSONPlaceholder | `tests/api/jsonplaceholder.postman_collection.json` |
+| 負荷テスト成果物 | OWASP Juice Shop（ローカル） | `jmeter/` |
+| 性能結果の集計 | JMeter JTLの平均・p95・最大・エラー率 | `scripts/analyze_jmeter.py` |
+| CI | push / pull request | `.github/workflows/test.yml` |
+| 依存関係セキュリティ | PR・週次のPython依存関係監査 | `.github/workflows/security.yml` |
+| テスト設計 | リスク分析、継続改善、カバレッジ | `docs/01-system-overview.md`から始まる設計書 |
+
+アクセシビリティ自動テスト、夜間クロスブラウザ、回帰・夜間・性能ワークフローの分割、Datadog等によるAPM可観測性連携は未実装です。
+
+## 選定理由
+
+- APIは正常・異常・境界値・認証/認可を高速かつ再現性の高い形で確認できるため、自動化を優先します。
+- UIはログイン、カート、チェックアウトなど主要導線に限定し、Page Objectで保守性を確保します。
+- 性能は機能テストでは検出しづらい非機能リスクのため、JMeterを通常の機能CIと分離します。
+- UXや探索的テストは人の判断が必要なため、自動化対象から外し、手動テストとして残します。
+
 ---
 
-## 📌 取り組んだ内容
+## 設計ドキュメント
 
-| 種類 | 対象 | ツール | フォルダ |
-|---|---|---|---|
-| UIテスト（機能） | [SauceDemo](https://www.saucedemo.com)（公開デモサイト） | Python / pytest / Playwright | `tests/ui/` |
-| APIテスト | [JSONPlaceholder](https://jsonplaceholder.typicode.com)（練習用API） | Postman / Newman | `tests/api/` |
-| 負荷テスト（非機能） | OWASP Juice Shop（自分のPC上） | JMeter | `jmeter/` |
-| 自動実行（CI） | push のたびに UI・API テストを実行 | GitHub Actions | `.github/workflows/` |
-
----
-
-## 📝 テスト設計
-
-自動化の前に、テスト設計を作成しています。
-
-| 成果物 | 内容 |
-|---|---|
-| 要求分析 | 品質目標を、あってはならない（Never）／出来なければならない（Must）／あったらいいな（Want）に分類 |
-| FV表 | 機能ごとの確認項目を、Checking（仕様どおりの確認）と Testing（誤動作を狙った確認）に分けて整理 |
-| テストマップ | 機能 × テスト観点で、網羅性を確認 |
-| テストケース | FV表とテストマップから作成（手順・期待結果つき） |
-| テスト計画書 | 範囲、自動化の対象、スケジュール、リスク、実施記録 |
-
-- 自動化の対象は、FV表の「自動化」列で決めています（Checking を中心に選定。Testing は設計のみ）。
-- 設計の資料は `docs/` にあります。
+- [システム概要](docs/01-system-overview.md)
+- [品質リスク分析](docs/02-quality-risk-analysis.md)
+- [テスト戦略](docs/03-test-strategy.md)
+- [自動化選定](docs/04-automation-selection.md)
+- [テストカバレッジマップ](docs/05-test-coverage-map.md)
+- [CI戦略](docs/06-ci-strategy.md)
+- [品質指標](docs/07-quality-metrics.md)
+- [改善履歴](docs/08-improvement-log.md)
 
 ---
 
-## 📁 フォルダ構成
+## 実行方法
 
-```text
-├─ docs/                    テスト設計・テスト計画書
-├─ tests/ui/                Playwright の UIテスト
-├─ tests/api/               Postman のコレクション
-├─ pages/                   Page Object（画面ごとのロケーターと操作）
-├─ jmeter/                  負荷テスト（Juice Shop）
-├─ conftest.py              pytest の共通フィクスチャ
-├─ pytest.ini               pytest の設定
-└─ .github/workflows/       GitHub Actions（CI）
-```
+### UIテスト
 
----
-
-## ▶ 実行方法
-
-Python 3.12（64bit）と Node.js が必要です。
-
-### UIテスト（Playwright）
-
-```bash
+```powershell
 python -m venv .venv
-.venv\Scripts\activate          # Mac/Linux: source .venv/bin/activate
+.venv\Scripts\activate
 pip install -r requirements.txt
 playwright install chromium
-pytest
+pytest tests/ui
 ```
 
-ブラウザの動きを見たい場合：
+ブラウザの動きを確認する場合は次を使います。
 
-```bash
-pytest --headed --slowmo 500
+```powershell
+pytest tests/ui --headed --slowmo 500
 ```
 
-### APIテスト（Postman / Newman）
+### APIテスト
 
-```bash
+```powershell
 npm install -g newman
 newman run tests/api/jsonplaceholder.postman_collection.json
 ```
 
-### 負荷テスト（JMeter）
+### 負荷テスト
 
-Juice Shop を自分のPCで起動し（`http://localhost:3000`）、非GUIで実行します。
+Juice Shopをローカルで起動し、JMeterのGUIまたは非GUIモードで実行します。
 
-```bash
-jmeter -n -t jmeter/load-test.jmx -l jmeter/results/result.jtl -e -o jmeter/results/report
+```powershell
+jmeter -n -t jmeter/juice-shop-loadtest.jmx -l jmeter/results.jtl -e -o jmeter/report
 ```
 
-`jmeter/results/report` は、空か、存在しない状態にしてから実行します。
+`jmeter/report`は空または未作成の状態で実行してください。負荷テストは自分のローカル環境だけで実施します。
 
-### テスト結果
+### 性能結果の集計
 
-失敗したテストのスクリーンショットとトレースは、`test-results/` に保存されます。
+```powershell
+python scripts/analyze_jmeter.py jmeter/results.jtl
+python scripts/analyze_jmeter.py jmeter/results.jtl --max-p95-ms 1000 --max-error-rate-pct 5
+```
 
----
+集計結果は平均、p95、最大応答時間、サンプル数、エラー率を示します。閾値は学習用の仮置きです。
 
-## ⚠ 注意
+### セキュリティ監査
 
-- テスト対象は、公開デモサイト・練習用API・自分のPC上の環境だけです。他人のサイトや本番環境には、負荷をかけません。
-- Juice Shop は、脆弱性を含む練習用アプリです。外部には公開しません。
-- SauceDemo は仕様書がないため、画面の挙動から要求を推定しています。
-- 負荷テストの目標値（応答時間・エラー率）は、学習用の仮置きです。
+PRと毎週月曜日、または手動実行時に`pip-audit`でPython依存関係を確認します。監査で検出された既知脆弱性は、影響と修正方法を確認して対応します。
 
----
+## 継続的品質改善
 
-## ✨ このポートフォリオで示していること
+性能劣化や不具合は、`検知 → 観測 → 原因仮説 → 改善 → 再検証`の順で扱います。JMeter JTLは`analyze_jmeter.py`でBefore/Afterに集計します。Datadogが未導入の環境では、まずJMeter指標、HTTPステータス、ログ、ローカル環境情報を観測します。導入済みのAPM、Logs、Metrics、Tracesとテスト結果を関連付ける仕組みはTODOです。
 
-- テスト設計（要求分析 → FV表 → テストマップ → テストケース）
-- UI自動化（Playwright / pytest / Page Object）
-- API自動化（Postman / Newman）
-- 負荷テスト（JMeter）
-- CIでの自動実行（GitHub Actions）
+## レポートと失敗証跡
+
+- Playwright失敗時は`test-results/`へスクリーンショット・トレースを保存します。
+- `jmeter/report/`には生成済みのHTMLレポートがあります。
+- GitHub Actionsの失敗ジョブからUIテストのArtifactを確認できます。
+- 製品不具合、テスト不具合、環境不具合、外部依存不具合を分けて扱います。
+
+## 注意
+
+- SauceDemoは仕様書がないため、画面挙動から要求を推定しています。
+- Juice Shopは脆弱性を含む練習用アプリです。外部公開や本番利用は行いません。
+- 負荷テストの応答時間・エラー率は学習用の仮置き閾値です。
