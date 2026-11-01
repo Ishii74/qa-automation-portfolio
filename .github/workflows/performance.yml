@@ -28,6 +28,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Show executed commit
+        run: |
+          git rev-parse HEAD
+          git log -1 --oneline
+
       - name: Install JMeter
         run: |
           sudo apt-get update
@@ -76,10 +81,33 @@ jobs:
             -e 's#<stringProp name="filename">[^<]*results\.jtl *</stringProp>#<stringProp name="filename">jmeter/results.jtl</stringProp>#' \
             jmeter/juice-shop-loadtest-ci.jmx
 
+      - name: Remove stale performance results
+        run: |
+          rm -f jmeter/results.jtl
+          rm -rf jmeter/ci-report
+
+          if [ -e jmeter/results.jtl ]; then
+            echo "Stale JTL still exists."
+            exit 1
+          fi
+          echo "Confirmed stale JTL removed: jmeter/results.jtl does not exist"
+
       - name: Run JMeter in non-GUI mode
         id: jmeter-run
         continue-on-error: true
         run: jmeter -n -t jmeter/juice-shop-loadtest-ci.jmx -l jmeter/results.jtl
+
+      - name: Verify generated JTL
+        if: always()
+        run: |
+          if [ ! -f jmeter/results.jtl ]; then
+            echo "Generated JTL does not exist: jmeter/results.jtl"
+            exit 1
+          fi
+
+          echo "JTL generated: jmeter/results.jtl"
+          stat -c 'JTL updated: %y' jmeter/results.jtl
+          echo "JTL line count: $(wc -l < jmeter/results.jtl)"
 
       - name: Generate HTML Report
         id: html-report
