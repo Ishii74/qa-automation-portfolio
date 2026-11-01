@@ -34,18 +34,19 @@ API・UI・性能テストを、検出価値、実行頻度、保守コストに
 | APIテスト | JSONPlaceholder | `tests/api/jsonplaceholder.postman_collection.json` |
 | 負荷テスト成果物 | OWASP Juice Shop（ローカル） | `jmeter/` |
 | 性能結果の集計 | JMeter JTLの平均・p95・最大・エラー率 | `scripts/analyze_jmeter.py` |
+| 性能テストCI | JMeter実行・JTL分析・性能ゲート | `.github/workflows/performance.yml` |
 | CI | push / pull request | `.github/workflows/test.yml` |
 | 依存関係セキュリティ | PR・週次のPython依存関係監査 | `.github/workflows/security.yml` |
 | テスト設計 | リスク分析、継続改善、カバレッジ | `docs/01-system-overview.md`から始まる設計書 |
 | PR品質ゲート | Pull Request時の品質確認 |  `.github/workflows/pr-quality-gate.yml`  |
 
-アクセシビリティ自動テスト、夜間クロスブラウザ、回帰・夜間・性能ワークフローの分割、Datadog等によるAPM可観測性連携は未実装です。
+アクセシビリティ自動テスト、夜間クロスブラウザ、回帰・夜間ワークフローのGitHub Actions上での最終動作確認、Datadog等によるAPM可観測性連携は未実装または確認中です。
 
 ## 選定理由
 
 - APIは正常・異常・境界値・認証/認可を高速かつ再現性の高い形で確認できるため、自動化を優先します。
 - UIはログイン、カート、チェックアウトなど主要導線に限定し、Page Objectで保守性を確保します。
-- 性能は機能テストでは検出しづらい非機能リスクのため、JMeterで独立して検証します。今後、通常の機能CIと分離した性能ワークフローへ拡張予定です。
+- 性能は機能テストでは検出しづらい非機能リスクのため、JMeterで独立して検証します。`performance.yml`ではCI内で起動したJuice Shopを対象に、JTL・HTML Report・性能ゲートを実行します。
 - UXや探索的テストは人の判断が必要なため、自動化対象から外し、手動テストとして残します。
 
 ---
@@ -114,6 +115,8 @@ PRと毎週月曜日、または手動実行時に`pip-audit`でPython依存関�
 ## 継続的品質改善
 
 性能劣化や不具合は、`検知 → 観測 → 原因仮説 → 改善 → 再検証`の順で扱います。JMeter JTLを集計し、改善前後の結果を比較できる構成としています。Datadogが未導入の環境では、まずJMeter指標、HTTPステータス、ログ、ローカル環境情報を観測します。導入済みのAPM、Logs、Metrics、Tracesとテスト結果を関連付ける仕組みはTODOです。
+
+Performance CIの初回実行では全体エラー率66.67%を検出しました。API別の結果からLogin/Basketの失敗を切り分け、JMeterシナリオの認証フローを修正しました。さらにCI環境でのJMeter/JMX互換性問題を切り分け、Apache JMeter 5.6.3へ実行環境を統一しました。再検証では30サンプルの全体エラー率0%を確認しています。これはテストシナリオおよびCI環境の問題を解消し、テストエラー率を66.67%から0%にしたものであり、製品の性能が66.67%改善したことを示すものではありません。
 
 ## レポートと失敗証跡
 
